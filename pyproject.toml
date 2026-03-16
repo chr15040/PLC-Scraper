@@ -1,0 +1,32 @@
+[project]
+name = "plc-scraper"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Ashley Boswell",email = "aboswell@esri.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13, <=3.14"
+dependencies = [
+    "python-dotenv (>=1.2.2,<2.0.0)",
+    "langchain (>=1.2.12,<2.0.0)",
+    "langchain-mongodb (>=0.11.0,<0.12.0)",
+    "pymongo (>=4.16.0,<5.0.0)",
+    "markdownify (>=1.2.2,<2.0.0)",
+    "langchain-openai (>=1.1.11,<2.0.0)",
+    "langchain-core (>=1.2.19,<2.0.0)",
+    "validators (>=0.35.0,<0.36.0)",
+    "boto3 (>=1.42.68,<2.0.0)",
+    "pandas (>=3.0.1,<4.0.0)",
+    "langchain-text-splitters (>=1.1.1,<2.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "config", from = "src"},
+{include = "embedding", from = "src"},
+{include = "text_splitter", from = "src"}]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

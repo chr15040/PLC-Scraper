@@ -1,0 +1,1 @@
+ALLOWED_ORIGINS = [ "https://webapps-cdn-dev.esri.com", "https://webapps-cdn-stg.esri.com", "https://webapps-cdn.esri.com", "http://localhost:8000", "https://support-uat.esri.com" , "https://support.esri.com", "https://support-dev.esri.com" , "https://preview-support.esri.com" ,"https://archie-ui-dev.esri.com"]
