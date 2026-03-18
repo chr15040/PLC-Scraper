@@ -13,21 +13,24 @@ OUTPUT_CSV = "src/newprocessed/scraped_plc.csv"
 
 
 def scrape():
-    with open(INPUT_CSV, newline='', encoding='utf-8') as plcs_to_scrape, \
-        open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as scraped_plcs:
+    with open(INPUT_CSV, newline='', encoding='utf-8-sig') as plcs_to_scrape, \
+        open(OUTPUT_CSV, 'w', newline='', encoding='utf-8-sig') as scraped_plcs:
 
-        reader = csv.reader(plcs_to_scrape)
-        next(reader) # skip header
+        reader = csv.DictReader(plcs_to_scrape)
         writer = csv.writer(scraped_plcs)
         writer.writerow(["metadata", "content"])
 
         for row in reader:
-            url = row[0].strip()
+            url = row['url'].strip()
+
             raw_content = asyncio.run(fetch_url_source(url))
+
             soup = BeautifulSoup(raw_content, 'html.parser')
-            metadata, content = get_content(soup)
-            content = re.sub(r'(\n)+', ' ', content)
-            writer.writerow([metadata, content])
+            content = get_content(soup)
+            metadata = get_metadata(soup, url)
+
+            clean_content = clean_text(content)
+            writer.writerow([metadata, clean_content])
 
 
 async def fetch_url_source(url):
@@ -47,6 +50,9 @@ async def fetch_url_source(url):
 
 
 def get_content(soup):
+    """
+    Get the scraped content from the page
+    """
     title = soup.find("h1", class_="esri-text__title")
     subtitle = soup.find("h2", class_="esri-text__title")
     
@@ -58,8 +64,7 @@ def get_content(soup):
     
     content = f"{title} {subtitle} {table1} {table2} {add_prod_info}"
 
-    metadata = get_metadata(soup, title)
-    return metadata, content
+    return content
 
 
 def convert_tech_supt_table(soup: BeautifulSoup):
@@ -148,7 +153,8 @@ def get_additional_prod_info(soup: BeautifulSoup):
     return "<p>" + result + "</p>"
 
 
-def get_metadata(soup, title):
+def get_metadata(soup, url):
+    title = soup.find("h1", class_="esri-text__title")
     product = get_product_tag(soup, plc=True)
     last_modified = get_date_tag(soup)
 
@@ -156,6 +162,11 @@ def get_metadata(soup, title):
 
     return metadata
 
+
+def clean_text(text):
+    clean_text = re.sub(r'(\n)+', ' ', text)
+    clean_text = clean_text.replace('\u00a0', ' ')
+    return clean_text
 
 if __name__ == "__main__":
     scrape()
