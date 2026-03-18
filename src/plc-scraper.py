@@ -3,10 +3,31 @@ import asyncio
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
+import csv
+import re
 
 from utils.scraper_utils import *
 
-url = "https://support.esri.com/en-us/products/arcgis-pro/life-cycle"
+INPUT_CSV = "plcs_to_scrape.csv"
+OUTPUT_CSV = "src/newprocessed/scraped_plc.csv"
+
+
+def scrape():
+    with open(INPUT_CSV, newline='', encoding='utf-8') as plcs_to_scrape, \
+        open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as scraped_plcs:
+
+        reader = csv.reader(plcs_to_scrape)
+        next(reader) # skip header
+        writer = csv.writer(scraped_plcs)
+        writer.writerow(["metadata", "content"])
+
+        for row in reader:
+            url = row[0].strip()
+            raw_content = asyncio.run(fetch_url_source(url))
+            soup = BeautifulSoup(raw_content, 'html.parser')
+            metadata, content = get_content(soup)
+            content = re.sub(r'(\n)+', ' ', content)
+            writer.writerow([metadata, content])
 
 
 async def fetch_url_source(url):
@@ -36,9 +57,9 @@ def get_content(soup):
     add_prod_info = get_additional_prod_info(soup)
     
     content = f"{title} {subtitle} {table1} {table2} {add_prod_info}"
-    print(content)
 
     metadata = get_metadata(soup, title)
+    return metadata, content
 
 
 def convert_tech_supt_table(soup: BeautifulSoup):
@@ -57,7 +78,7 @@ def convert_tech_supt_table(soup: BeautifulSoup):
     row_headers = [tag.get_text().strip() for tag in table.tbody.find_all("th")]
     row_contents = [[content for content in row.find_all("td")] for row in table.tbody.find_all("tr")]
 
-    result = "<h2>" + caption.get_text(" ").strip() + ". Available actions and resources for each life cycle stage:</h2>\n<ul>\n"
+    result = "<h2>" + caption.get_text(" ").strip() + ". Available actions and resources for each life cycle stage:</h2><ul>"
 
     for col_number, col_header in enumerate(table.thead.find_all("th")):
         supported_actions = []
@@ -69,9 +90,9 @@ def convert_tech_supt_table(soup: BeautifulSoup):
             if row[col_number].find("calcite-icon"): # aka checkmark
                 supported_actions.append(row_headers[row_number])
 
-        result += f"<li>{column_name}: {', '.join(supported_actions)}</li>\n"
+        result += f"<li>{column_name}: {', '.join(supported_actions)}</li>"
     
-    result = result + "</ul>\n"
+    result = result + "</ul>"
     return result
 
 
@@ -120,11 +141,11 @@ def get_additional_prod_info(soup: BeautifulSoup):
     result = ""
     
     for tag in soup.find_all("div", class_="columnsystem", limit=2):
-        prod_info_text = tag.get_text("\n").strip()
+        prod_info_text = tag.get_text("").strip()
         prod_info_text = remove_duplicate_newlines(prod_info_text)
-        result += prod_info_text + "\n"
+        result += prod_info_text + ""
     
-    return "<p>" + result + "</p>\n"
+    return "<p>" + result + "</p>"
 
 
 def get_metadata(soup, title):
@@ -137,6 +158,4 @@ def get_metadata(soup, title):
 
 
 if __name__ == "__main__":
-    content = asyncio.run(fetch_url_source(url))
-    soup = BeautifulSoup(content, 'html.parser')
-    get_content(soup)
+    scrape()
