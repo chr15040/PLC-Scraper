@@ -11,6 +11,14 @@ from utils.scraper_utils import *
 INPUT_CSV = "plcs_to_scrape.csv"
 OUTPUT_CSV = "src/newprocessed/scraped_plc.csv"
 
+RETIRED_URLS = [
+    # These are urls of retired products. They will be reviewed then removed from the input list eventually
+    "https://support.esri.com/en-us/products/sure-for-arcgis/life-cycle",
+    "https://support.esri.com/en-us/products/arcgis-for-office/life-cycle",
+    "https://support.esri.com/en-us/products/arcgis-configurable-apps/life-cycle",
+    "https://support.esri.com/en-us/products/arcgis-geoplanner/life-cycle"
+]
+
 
 def scrape():
     with open(INPUT_CSV, newline='', encoding='utf-8-sig') as plcs_to_scrape, \
@@ -19,10 +27,14 @@ def scrape():
         reader = csv.DictReader(plcs_to_scrape)
         writer = csv.writer(scraped_plcs)
         writer.writerow(["metadata", "content"])
+        counter = 0
 
         for row in reader:
             url = row['url'].strip()
-            print(f"Scraping {url}...")
+            if url in RETIRED_URLS:
+                continue
+            print(f"{counter}: Scraping {url}...")
+            counter += 1
 
             raw_content = asyncio.run(fetch_url_source(url))
 
@@ -70,12 +82,11 @@ def get_tables(soup):
     """
     Get the html of the product life cycle tables on the active page
     """
-    tabs = soup.find("div", class_=re.compile("esri-tabs*"))
+    tab_header = soup.find("li", class_=re.compile("tab--active$"))
     tables_html = ""
 
-    if tabs:
-        tab_header = soup.find("li", class_=re.compile("tab--active$")).get_text().strip()
-        tables_html += f"<h2>{tab_header}</h2>"
+    if tab_header:
+        tables_html += f"<h2>{tab_header.get_text().strip()}</h2>"
 
         active_tabpanel = soup.find("div", class_=re.compile("tabpanel--active$"))
         tables_html += convert_tech_supt_table(active_tabpanel)
