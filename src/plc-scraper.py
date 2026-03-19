@@ -22,6 +22,7 @@ def scrape():
 
         for row in reader:
             url = row['url'].strip()
+            print(f"Scraping {url}...")
 
             raw_content = asyncio.run(fetch_url_source(url))
 
@@ -55,16 +56,39 @@ def get_content(soup):
     """
     title = soup.find("h1", class_="esri-text__title")
     subtitle = soup.find("h2", class_="esri-text__title")
-    
-    table1 = convert_tech_supt_table(soup)
 
-    table2 = prune_version_table(soup)
+    tables = get_tables(soup)
 
     add_prod_info = get_additional_prod_info(soup)
     
-    content = f"{title} {subtitle} {table1} {table2} {add_prod_info}"
+    content = f"{title} {subtitle} {tables} {add_prod_info}"
 
     return content
+
+
+def get_tables(soup):
+    """
+    Get the html of the product life cycle tables on the page. Handle multiple if there are tabs on the page
+    """
+    tabs = soup.find("div", class_=re.compile("esri-tabs*"))
+    tables_html = ""
+
+    if tabs:
+        for tab in tabs.find_all("li", role="tab"):
+            heading = tab.get_text().strip()
+
+            tab_panel = soup.find("div", id=tab["id"] + "panel")
+            if tab_panel:
+                table1 = convert_tech_supt_table(tab_panel)
+                table2 = prune_version_table(tab_panel)
+
+                tables_html += f"<h3>{heading}</h3> {table1} {table2}"
+        
+    else:
+        tables_html += convert_tech_supt_table(soup)
+        tables_html += prune_version_table(soup)
+
+    return tables_html
 
 
 def convert_tech_supt_table(soup: BeautifulSoup):
@@ -76,8 +100,7 @@ def convert_tech_supt_table(soup: BeautifulSoup):
     • Mature June 01, 2027—November 30, 2028: Create case, online support
     • Retirement December 01, 2028: online support
     """
-    table_div = soup.find("div", class_="technical-support-table")
-    table = table_div.find("div", class_="table-wrapper")
+    table = soup.find("div", class_="technical-support-table")
 
     caption = table.caption
     row_headers = [tag.get_text().strip() for tag in table.tbody.find_all("th")]
@@ -106,6 +129,8 @@ def prune_version_table(soup: BeautifulSoup):
     Prune the html of the version table from the support site to exclude all color and styling info and any retired versions
     """
     table = soup.find("div", class_="multiple-version-table")
+    if not table:
+        return ""
 
     table.attrs = {}
     table.h2.attrs = {}
@@ -132,7 +157,7 @@ def prune_version_table(soup: BeautifulSoup):
     if button:
         button.decompose()
 
-    return table
+    return str(table)
 
 
 def get_additional_prod_info(soup: BeautifulSoup):
@@ -148,8 +173,8 @@ def get_additional_prod_info(soup: BeautifulSoup):
     for tag in soup.find_all("div", class_="columnsystem", limit=2):
         prod_info_text = tag.get_text("").strip()
         prod_info_text = remove_duplicate_newlines(prod_info_text)
-        result += prod_info_text + ""
-    
+        result += prod_info_text + " "
+
     return "<p>" + result + "</p>"
 
 
