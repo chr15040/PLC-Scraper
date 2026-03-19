@@ -68,21 +68,18 @@ def get_content(soup):
 
 def get_tables(soup):
     """
-    Get the html of the product life cycle tables on the page. Handle multiple if there are tabs on the page
+    Get the html of the product life cycle tables on the active page
     """
     tabs = soup.find("div", class_=re.compile("esri-tabs*"))
     tables_html = ""
 
     if tabs:
-        for tab in tabs.find_all("li", role="tab"):
-            heading = tab.get_text().strip()
+        tab_header = soup.find("li", class_=re.compile("tab--active$")).get_text().strip()
+        tables_html += f"<h2>{tab_header}</h2>"
 
-            tab_panel = soup.find("div", id=tab["id"] + "panel")
-            if tab_panel:
-                table1 = convert_tech_supt_table(tab_panel)
-                table2 = prune_version_table(tab_panel)
-
-                tables_html += f"<h3>{heading}</h3> {table1} {table2}"
+        active_tabpanel = soup.find("div", class_=re.compile("tabpanel--active$"))
+        tables_html += convert_tech_supt_table(active_tabpanel)
+        tables_html += prune_version_table(active_tabpanel)                
         
     else:
         tables_html += convert_tech_supt_table(soup)
@@ -106,7 +103,7 @@ def convert_tech_supt_table(soup: BeautifulSoup):
     row_headers = [tag.get_text().strip() for tag in table.tbody.find_all("th")]
     row_contents = [[content for content in row.find_all("td")] for row in table.tbody.find_all("tr")]
 
-    result = "<h2>" + caption.get_text(" ").strip() + ". Available actions and resources for each life cycle stage:</h2><ul>"
+    result = "<h3>" + caption.get_text(" ").strip() + ". Available actions and resources for each life cycle stage:</h3><ul>"
 
     for col_number, col_header in enumerate(table.thead.find_all("th")):
         supported_actions = []
@@ -134,6 +131,7 @@ def prune_version_table(soup: BeautifulSoup):
 
     table.attrs = {}
     table.h2.attrs = {}
+    table.h2.name = "h3"
     # Prune Table Headers
     for header in table.thead.find_all("th"):
         header.attrs = {}
