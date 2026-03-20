@@ -1,10 +1,10 @@
 import asyncio
+import csv
+import re
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-import csv
-import re
 
 from utils.scraper_utils import *
 
@@ -95,13 +95,10 @@ def get_tables(soup):
     if tab_header:
         tables_html += f"<h2>{tab_header.get_text().strip()}</h2>"
 
-        active_tabpanel = soup.find("div", class_=re.compile("tabpanel--active$"))
-        tables_html += convert_tech_supt_table(active_tabpanel)
-        tables_html += prune_version_table(active_tabpanel)                
-        
-    else:
-        tables_html += convert_tech_supt_table(soup)
-        tables_html += prune_version_table(soup)
+        soup = soup.find("div", class_=re.compile("tabpanel--active$"))
+
+    tables_html += convert_tech_supt_table(soup)
+    tables_html += prune_version_table(soup)
 
     return tables_html
 
@@ -188,7 +185,6 @@ def get_additional_prod_info(soup: BeautifulSoup):
     
     for tag in soup.find_all("div", class_="columnsystem", limit=2):
         prod_info_text = tag.get_text("").strip()
-        prod_info_text = remove_duplicate_newlines(prod_info_text)
         result += prod_info_text + " "
 
     return "<p>" + result + "</p>"
@@ -199,9 +195,7 @@ def get_metadata(soup, url):
     product = get_product_tag(soup, plc=True)
     last_modified = get_date_tag(soup)
 
-    metadata = make_metadata(product, last_modified, url, title)
-
-    return metadata
+    return make_metadata(product, last_modified, url, title)
 
 
 def clean_text(text):
