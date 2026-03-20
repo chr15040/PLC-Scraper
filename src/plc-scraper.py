@@ -18,46 +18,53 @@ RETIRED_URLS = [
     "https://support.esri.com/en-us/products/arcgis-configurable-apps/life-cycle",
     "https://support.esri.com/en-us/products/arcgis-geoplanner/life-cycle"
 ]
+semaphore = asyncio.Semaphore(3)
 
 
-def scrape():
-    with open(INPUT_CSV, newline='', encoding='utf-8-sig') as plcs_to_scrape, \
-        open(OUTPUT_CSV, 'w', newline='', encoding='utf-8-sig') as scraped_plcs:
+async def scrape():
+    with open(OUTPUT_CSV, 'w', newline='', encoding='utf-8-sig') as scraped_plcs:
 
-        reader = csv.DictReader(plcs_to_scrape)
         writer = csv.writer(scraped_plcs)
         writer.writerow(["metadata", "content"])
-        counter = 0
 
-        for row in reader:
-            url = row['url'].strip()
-            if url in RETIRED_URLS:
-                continue
-            print(f"{counter}: Scraping {url}...")
-            counter += 1
+        tasks = [scrape_url(url) for url in get_urls()]
+        result = await asyncio.gather(*tasks)
 
-            raw_content = asyncio.run(fetch_url_source(url))
+        for res in result:
+            writer.writerow([res["metadata"], res["content"]])
 
-            soup = BeautifulSoup(raw_content, 'html.parser')
-            content = get_content(soup)
-            metadata = get_metadata(soup, url)
 
-            clean_content = clean_text(content)
-            writer.writerow([metadata, clean_content])
+async def scrape_url(url):
+    raw_content = await fetch_url_source(url)
+    print(f"Scraping {url}...")
+
+    soup = BeautifulSoup(raw_content, 'html.parser')
+    content = get_content(soup)
+    metadata = get_metadata(soup, url)
+    clean_content = clean_text(content)
+
+    return {"metadata": metadata, "content": clean_content}
+
+
+def get_urls():
+    with open(INPUT_CSV, newline='', encoding='utf-8-sig') as plcs_to_scrape:
+        reader = csv.DictReader(plcs_to_scrape)
+        return [row['url'].strip() for row in reader if row['url'].strip() not in RETIRED_URLS]
 
 
 async def fetch_url_source(url):
     for _ in range(3):
         try:
-            async with Stealth().use_async(async_playwright()) as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page()
+            async with semaphore:
+                async with Stealth().use_async(async_playwright()) as p:
+                    browser = await p.chromium.launch(headless=True)
+                    page = await browser.new_page()
 
-                await page.goto(url, wait_until="load")
+                    await page.goto(url, wait_until="load")
 
-                content = await page.content()
-                await browser.close()
-                return content
+                    content = await page.content()
+                    await browser.close()
+                    return content
         except Exception as e:
             print(f"Error fetching {url}: {str(e)}")
 
@@ -203,4 +210,4 @@ def clean_text(text):
     return clean_text
 
 if __name__ == "__main__":
-    scrape()
+    asyncio.run(scrape())
