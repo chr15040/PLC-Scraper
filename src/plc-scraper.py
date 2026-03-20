@@ -2,7 +2,7 @@ import asyncio
 import csv
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
@@ -73,7 +73,7 @@ def get_content(soup):
     """
     Get the scraped content from the page
     """
-    title = soup.find("h1", class_="esri-text__title")
+    title = f"<h1>{get_title_text(soup)}</h1>"
     subtitle = soup.find("h2", class_="esri-text__title")
 
     tables = get_tables(soup)
@@ -147,6 +147,10 @@ def prune_version_table(soup: BeautifulSoup):
     table.attrs = {}
     table.h2.attrs = {}
     table.h2.name = "h3"
+    # Remove comment
+    for comment in table.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+
     # Prune Table Headers
     for header in table.thead.find_all("th"):
         header.attrs = {}
@@ -158,7 +162,7 @@ def prune_version_table(soup: BeautifulSoup):
             row.decompose()
             continue
 
-        #Prune 
+        #Prune Table Cells
         for cell in row.descendants:
             if cell.name == "calcite-link":
                 cell.unwrap()
@@ -191,12 +195,22 @@ def get_additional_prod_info(soup: BeautifulSoup):
 
 
 def get_metadata(soup, url):
-    title = soup.find("h1", class_="esri-text__title")
+    title = get_title_text(soup)
     product = get_product_tag(soup, plc=True)
     last_modified = get_date_tag(soup)
 
     return make_metadata(product, last_modified, url, title)
 
+
+def get_title_text(soup):
+    """Get the title of the page and append the specific version if there are multiple versions"""
+    title = soup.find("h1", class_="esri-text__title").get_text().strip()
+    tab_header = soup.find("li", class_=re.compile("tab--active$"))
+
+    if tab_header:
+        title += ": " + tab_header.get_text().strip()
+    
+    return f"{title}"
 
 def clean_text(text):
     clean_text = re.sub(r'(\n)+', ' ', text)
