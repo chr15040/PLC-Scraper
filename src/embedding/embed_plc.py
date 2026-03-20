@@ -17,8 +17,8 @@ import pandas as pd
 from pymongo import MongoClient
 import validators
 
-from ..config import *
-from ..text_splitter.chunk_page import chunk_page
+from config import *
+from text_splitter.chunk_page import chunk_page
 
 # s3 = S3Bucket()
 # s3.dl_data(scrape_data=True)
@@ -183,6 +183,6 @@ if doc_chunks:
             new_writer.writerow([chunk.metadata.get("source"), chunk.page_content])
             print(f"CHUNK: {chunk}\n")
 
-    # if sources:
-    #     delete_documents_by_source(sources)
-    # process_batches(doc_chunks)
+    if sources:
+        delete_documents_by_source(sources)
+    process_batches(doc_chunks)

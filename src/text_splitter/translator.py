@@ -1,5 +1,5 @@
 from openai import AzureOpenAI
-from ..config import (
+from config import (
     OPENAI_API_KEY,
     OPENAI_API_VERSION_52,
     OPENAI_API_BASE_52,

@@ -59,7 +59,7 @@ def get_product_tag(soup, plc=False):
     return product
 
 
-def make_metadata(product, last_modified, url, title, prod_version=None, region='general'):
+def make_metadata(product, last_modified, url, title, prod_version=None, region=['general']):
     metadata = {}
 
     if product:
